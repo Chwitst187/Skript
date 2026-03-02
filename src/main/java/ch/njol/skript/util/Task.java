@@ -5,6 +5,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.lang.reflect.Method;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
@@ -25,6 +27,7 @@ public abstract class Task implements Runnable, Closeable {
 	private boolean useScriptLoaderExecutor;
 	private long period = -1;
 	private int taskID = -1;
+	private @Nullable Object foliaTask;
 
 	/**
 	 * Creates a new task that will run after the given delay and then repeat every period ticks.
@@ -111,6 +114,10 @@ public abstract class Task implements Runnable, Closeable {
 		assert !isAlive();
 		if (!Skript.getInstance().isEnabled())
 			return;
+		if (Skript.isRunningFolia()) {
+			scheduleFolia(delay);
+			return;
+		}
 		if (useScriptLoaderExecutor) {
 			Executor executor = ScriptLoader.getExecutor();
 			if (delay > 0) {
@@ -136,10 +143,72 @@ public abstract class Task implements Runnable, Closeable {
 		}
 	}
 
+	private void scheduleFolia(final long delay) {
+		// Folia does not support BukkitScheduler async scheduling methods.
+		if (useScriptLoaderExecutor) {
+			Executor executor = ScriptLoader.getExecutor();
+			if (delay > 0) {
+				foliaTask = invokeFoliaScheduler("getGlobalRegionScheduler", "runDelayed", new Class<?>[] {Plugin.class, Runnable.class, long.class}, plugin, (Runnable) () -> executor.execute(this), delay);
+			} else {
+				executor.execute(this);
+			}
+			return;
+		}
+
+		if (async) {
+			long delayMillis = ticksToMillis(delay);
+			if (period == -1) {
+				if (delay <= 0) {
+					foliaTask = invokeFoliaScheduler("getAsyncScheduler", "runNow", new Class<?>[] {Plugin.class, Runnable.class}, plugin, (Runnable) this::run);
+				} else {
+					foliaTask = invokeFoliaScheduler("getAsyncScheduler", "runDelayed", new Class<?>[] {Plugin.class, Runnable.class, long.class, TimeUnit.class}, plugin, (Runnable) this::run, delayMillis, TimeUnit.MILLISECONDS);
+				}
+			} else {
+				foliaTask = invokeFoliaScheduler("getAsyncScheduler", "runAtFixedRate", new Class<?>[] {Plugin.class, Runnable.class, long.class, long.class, TimeUnit.class}, plugin, (Runnable) this::run, delayMillis, ticksToMillis(period), TimeUnit.MILLISECONDS);
+			}
+		} else {
+			if (period == -1) {
+				if (delay <= 0) {
+					foliaTask = invokeFoliaScheduler("getGlobalRegionScheduler", "run", new Class<?>[] {Plugin.class, Runnable.class}, plugin, (Runnable) this::run);
+				} else {
+					foliaTask = invokeFoliaScheduler("getGlobalRegionScheduler", "runDelayed", new Class<?>[] {Plugin.class, Runnable.class, long.class}, plugin, (Runnable) this::run, delay);
+				}
+			} else {
+				foliaTask = invokeFoliaScheduler("getGlobalRegionScheduler", "runAtFixedRate", new Class<?>[] {Plugin.class, Runnable.class, long.class, long.class}, plugin, (Runnable) this::run, delay, period);
+			}
+		}
+	}
+
+	private static @Nullable Object invokeFoliaScheduler(String schedulerMethod, String scheduleMethod, Class<?>[] parameterTypes, Object... args) {
+		try {
+			Object scheduler = Bukkit.class.getMethod(schedulerMethod).invoke(null);
+			Method method = scheduler.getClass().getMethod(scheduleMethod, parameterTypes);
+			return method.invoke(scheduler, args);
+		} catch (ReflectiveOperationException e) {
+			throw new UnsupportedOperationException("Unable to schedule Folia task", e);
+		}
+	}
+
+	private static long ticksToMillis(long ticks) {
+		return Math.max(0L, ticks * 50L);
+	}
+
 	/**
 	 * @return Whether this task is still running, i.e. whether it will run later or is currently running.
 	 */
 	public final boolean isAlive() {
+		if (Skript.isRunningFolia()) {
+			Object task = foliaTask;
+			if (task == null)
+				return false;
+			try {
+				Object state = task.getClass().getMethod("getExecutionState").invoke(task);
+				String name = state.toString();
+				return !"CANCELLED".equals(name) && !"FINISHED".equals(name);
+			} catch (ReflectiveOperationException e) {
+				return true;
+			}
+		}
 		if (taskID == -1)
 			return false;
 		return Bukkit.getScheduler().isQueued(taskID) || Bukkit.getScheduler().isCurrentlyRunning(taskID);
@@ -149,6 +218,12 @@ public abstract class Task implements Runnable, Closeable {
 	 * Cancels this task.
 	 */
 	public final void cancel() {
+		if (foliaTask != null) {
+			try {
+				foliaTask.getClass().getMethod("cancel").invoke(foliaTask);
+			} catch (ReflectiveOperationException ignored) {}
+			foliaTask = null;
+		}
 		if (taskID != -1) {
 			Bukkit.getScheduler().cancelTask(taskID);
 			taskID = -1;
