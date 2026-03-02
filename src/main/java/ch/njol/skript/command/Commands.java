@@ -11,6 +11,7 @@ import ch.njol.skript.localization.Message;
 import ch.njol.skript.log.RetainingLogHandler;
 import ch.njol.skript.log.SkriptLogger;
 import ch.njol.skript.util.SkriptColor;
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.skript.variables.Variables;
 import com.google.common.base.Preconditions;
 import org.bukkit.Bukkit;
@@ -287,7 +288,7 @@ public abstract class Commands {
 						if (handleEffectCommand(event.getPlayer(), event.getMessage()))
 							event.setCancelled(true);
 					} else {
-						Future<Boolean> f = Bukkit.getScheduler().callSyncMethod(Skript.getInstance(), () -> handleEffectCommand(event.getPlayer(), event.getMessage()));
+						Future<Boolean> f = SkriptScheduler.callSyncMethod(Skript.getInstance(), () -> handleEffectCommand(event.getPlayer(), event.getMessage()));
 						try {
 							while (true) {
 								try {

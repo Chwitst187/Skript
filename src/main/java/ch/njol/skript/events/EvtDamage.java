@@ -1,5 +1,6 @@
 package ch.njol.skript.events;
 
+import ch.njol.skript.util.SkriptScheduler;
 import org.bukkit.entity.EnderDragon;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -119,7 +120,7 @@ public class EvtDamage extends SkriptEvent {
 						if (((LivingEntity) en).getNoDamageTicks() > 0)
 							Skript.info("damage difference (positive = more): " + (e.getDamage() - en.getLastDamageCause().getDamage()));
 						final int h = Math.max(((LivingEntity) en).getHealth(), 0);
-						Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
+						SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
 							@Override
 							public void run() {
 								Skript.info("actual damage: " + (h - Math.max(((LivingEntity) en).getHealth(), 0)));

@@ -8,6 +8,7 @@ import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptEvent;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.util.Timespan;
+import ch.njol.skript.util.SkriptScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
 import org.bukkit.event.Event;
@@ -58,7 +59,7 @@ public class EvtPeriodical extends SkriptEvent {
 
 		if (worlds == null) {
 			taskIDs = new int[]{
-				Bukkit.getScheduler().scheduleSyncRepeatingTask(
+				SkriptScheduler.scheduleSyncRepeatingTask(
 					Skript.getInstance(), () -> execute(null), ticks, ticks
 				)
 			};
@@ -66,7 +67,7 @@ public class EvtPeriodical extends SkriptEvent {
 			taskIDs = new int[worlds.length];
 			for (int i = 0; i < worlds.length; i++) {
 				World world = worlds[i];
-				taskIDs[i] = Bukkit.getScheduler().scheduleSyncRepeatingTask(
+				taskIDs[i] = SkriptScheduler.scheduleSyncRepeatingTask(
 					Skript.getInstance(), () -> execute(world), ticks - (world.getFullTime() % ticks), ticks
 				);
 			}
@@ -78,7 +79,7 @@ public class EvtPeriodical extends SkriptEvent {
 	@Override
 	public void unload() {
 		for (int taskID : taskIDs)
-			Bukkit.getScheduler().cancelTask(taskID);
+			SkriptScheduler.cancelTask(taskID);
 	}
 
 	@Override

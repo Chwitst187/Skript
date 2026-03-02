@@ -4,7 +4,6 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.player.PlayerRespawnEvent;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.jetbrains.annotations.Nullable;
 
 import ch.njol.skript.Skript;
@@ -16,6 +15,7 @@ import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.log.ErrorQuality;
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.util.Kleenean;
 
 @Name("Force Respawn")
@@ -53,15 +53,8 @@ public class EffRespawn extends Effect {
 	@Override
 	protected void execute(final Event e) {
 		for (final Player p : players.getArray(e)) {
-			if (forceDelay) { // Use Bukkit runnable
-				new BukkitRunnable() {
-
-					@Override
-					public void run() {
-						p.spigot().respawn();
-					}
-
-				}.runTaskLater(Skript.getInstance(), 1);
+			if (forceDelay) {
+				SkriptScheduler.runTaskLater(Skript.getInstance(), () -> p.spigot().respawn(), 1);
 			} else { // Just respawn
 				p.spigot().respawn();
 			}

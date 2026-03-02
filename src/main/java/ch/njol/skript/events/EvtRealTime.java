@@ -6,6 +6,7 @@ import ch.njol.skript.lang.Literal;
 import ch.njol.skript.lang.SkriptEvent;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.util.Time;
+import ch.njol.skript.util.SkriptScheduler;
 import org.bukkit.Bukkit;
 import org.bukkit.event.Event;
 import org.bukkit.event.HandlerList;
@@ -100,7 +101,7 @@ public class EvtRealTime extends SkriptEvent {
 			return;
 		}
 
-		Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), () -> {
+		SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), () -> {
 			RealTimeEvent event = new RealTimeEvent();
 			SkriptEventHandler.logEventStart(event);
 			SkriptEventHandler.logTriggerStart(trigger);

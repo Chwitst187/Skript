@@ -8,6 +8,7 @@ import ch.njol.skript.lang.SkriptEvent;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.registrations.Classes;
 import ch.njol.skript.util.Time;
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.util.Math2;
 import org.bukkit.Bukkit;
 import org.bukkit.World;
@@ -84,7 +85,7 @@ public class EvtAtTime extends SkriptEvent implements Comparable<EvtAtTime> {
 		}
 
 		if (taskID != -1 && TRIGGERS.isEmpty()) { // Unregister Bukkit listener if possible
-			Bukkit.getScheduler().cancelTask(taskID);
+			SkriptScheduler.cancelTask(taskID);
 			taskID = -1;
 		}
 	}
@@ -106,7 +107,7 @@ public class EvtAtTime extends SkriptEvent implements Comparable<EvtAtTime> {
 			return;
 		// For each world:
 		// check each instance in order until triggerTime > (worldTime + period)
-		taskID = Bukkit.getScheduler().scheduleSyncRepeatingTask(Skript.getInstance(), () -> {
+		taskID = SkriptScheduler.scheduleSyncRepeatingTask(Skript.getInstance(), () -> {
 			for (Entry<World, EvtAtInfo> entry : TRIGGERS.entrySet()) {
 				EvtAtInfo info = entry.getValue();
 				int worldTime = (int) entry.getKey().getTime();

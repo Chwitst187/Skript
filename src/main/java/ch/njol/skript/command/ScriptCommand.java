@@ -25,6 +25,7 @@ import ch.njol.skript.util.Timespan;
 import ch.njol.skript.util.Utils;
 import ch.njol.skript.util.chat.BungeeConverter;
 import ch.njol.skript.util.chat.MessageComponent;
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.skript.variables.HintManager;
 import ch.njol.skript.variables.Variables;
 import ch.njol.util.StringUtils;
@@ -322,7 +323,7 @@ public class ScriptCommand implements TabExecutor {
 			runnable.run();
 		} else {
 			// must not wait for the command to complete as some plugins call commands in such a way that the server will deadlock
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), runnable);
+			SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), runnable);
 		}
 
 		return true; // Skript prints its own error message anyway

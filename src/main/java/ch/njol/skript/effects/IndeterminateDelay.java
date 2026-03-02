@@ -7,6 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import ch.njol.skript.Skript;
 import ch.njol.skript.lang.TriggerItem;
 import ch.njol.skript.util.Timespan;
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.skript.variables.Variables;
 
 /**
@@ -30,7 +31,7 @@ public class IndeterminateDelay extends Delay {
 			// Back up local variables
 			Object localVars = Variables.removeLocals(event);
 			
-			Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), () -> {
+			SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), () -> {
 				Delay.addDelayedEvent(event);
 				Skript.debug(getIndentation() + "... continuing after " + (System.nanoTime() - start) / 1_000_000_000. + "s");
 

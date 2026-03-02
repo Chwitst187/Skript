@@ -16,6 +16,7 @@ import ch.njol.skript.lang.Effect;
 import ch.njol.skript.lang.Expression;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.util.Timespan;
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.util.Kleenean;
 
 @Name("Ignite/Extinguish")
@@ -62,7 +63,7 @@ public class EffIgnite extends Effect {
 		}
 		for (Entity entity : entities.getArray(event)) {
 			if (event instanceof EntityDamageEvent && ((EntityDamageEvent) event).getEntity() == entity && !Delay.isDelayed(event)) {
-				Bukkit.getScheduler().scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
+				SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), new Runnable() {
 					@Override
 					public void run() {
 						entity.setFireTicks(duration);

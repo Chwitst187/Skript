@@ -122,22 +122,22 @@ public abstract class Task implements Runnable, Closeable {
 		if (useScriptLoaderExecutor) {
 			Executor executor = ScriptLoader.getExecutor();
 			if (delay > 0) {
-				taskID = Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, () -> executor.execute(this), delay);
+				taskID = SkriptScheduler.scheduleSyncDelayedTask(plugin, () -> executor.execute(this), delay);
 			} else {
 				executor.execute(this);
 			}
 		} else {
 			if (period == -1) {
 				if (async) {
-					taskID = Bukkit.getScheduler().runTaskLaterAsynchronously(plugin, this, delay).getTaskId();
+					taskID = SkriptScheduler.runTaskLaterAsynchronously(plugin, this, delay);
 				} else {
-					taskID = Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, this, delay);
+					taskID = SkriptScheduler.scheduleSyncDelayedTask(plugin, this, delay);
 				}
 			} else {
 				if (async) {
-					taskID = Bukkit.getScheduler().runTaskTimerAsynchronously(plugin, this, delay, period).getTaskId();
+					taskID = SkriptScheduler.runTaskTimerAsynchronously(plugin, this, delay, period);
 				} else {
-					taskID = Bukkit.getScheduler().scheduleSyncRepeatingTask(plugin, this, delay, period);
+					taskID = SkriptScheduler.scheduleSyncRepeatingTask(plugin, this, delay, period);
 				}
 			}
 			assert taskID != -1;
@@ -292,7 +292,7 @@ public abstract class Task implements Runnable, Closeable {
 			foliaTask = null;
 		}
 		if (taskID != -1) {
-			Bukkit.getScheduler().cancelTask(taskID);
+			SkriptScheduler.cancelTask(taskID);
 			taskID = -1;
 		}
 	}
@@ -356,7 +356,7 @@ public abstract class Task implements Runnable, Closeable {
 				Skript.exception(e);
 			}
 		}
-		final Future<T> f = Bukkit.getScheduler().callSyncMethod(p, c);
+		final Future<T> f = SkriptScheduler.callSyncMethod(p, c);
 		try {
 			while (true) {
 				try {

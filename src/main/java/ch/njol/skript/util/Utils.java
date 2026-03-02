@@ -1,5 +1,6 @@
 package ch.njol.skript.util;
 
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.skript.Skript;
 import ch.njol.skript.effects.EffTeleport;
 import ch.njol.skript.localization.Language;
@@ -569,7 +570,7 @@ public abstract class Utils {
 			listener));
 
 		// if we haven't gotten a response after a minute, let's just assume there wil never be one
-		Bukkit.getScheduler().scheduleSyncDelayedTask(skript, () -> {
+		SkriptScheduler.scheduleSyncDelayedTask(skript, () -> {
 
 			if (!completableFuture.isDone())
 				completableFuture.cancel(true);
