@@ -7,6 +7,7 @@ import java.util.concurrent.Executor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.lang.reflect.Method;
+import java.util.function.Consumer;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
@@ -182,11 +183,77 @@ public abstract class Task implements Runnable, Closeable {
 	private static @Nullable Object invokeFoliaScheduler(String schedulerMethod, String scheduleMethod, Class<?>[] parameterTypes, Object... args) {
 		try {
 			Object scheduler = Bukkit.class.getMethod(schedulerMethod).invoke(null);
-			Method method = scheduler.getClass().getMethod(scheduleMethod, parameterTypes);
-			return method.invoke(scheduler, args);
+			try {
+				Method method = scheduler.getClass().getMethod(scheduleMethod, parameterTypes);
+				return method.invoke(scheduler, args);
+			} catch (NoSuchMethodException ignored) {
+				Method method = findCompatibleFoliaMethod(scheduler.getClass(), scheduleMethod, args);
+				return method.invoke(scheduler, adaptFoliaArguments(method.getParameterTypes(), args));
+			}
 		} catch (ReflectiveOperationException e) {
 			throw new UnsupportedOperationException("Unable to schedule Folia task", e);
 		}
+	}
+
+	private static Method findCompatibleFoliaMethod(Class<?> schedulerClass, String methodName, Object[] args) throws NoSuchMethodException {
+		for (Method method : schedulerClass.getMethods()) {
+			if (!method.getName().equals(methodName))
+				continue;
+			Class<?>[] parameterTypes = method.getParameterTypes();
+			if (parameterTypes.length != args.length)
+				continue;
+			if (isCompatibleFoliaMethod(parameterTypes, args))
+				return method;
+		}
+		throw new NoSuchMethodException(schedulerClass.getName() + "#" + methodName);
+	}
+
+	private static boolean isCompatibleFoliaMethod(Class<?>[] parameterTypes, Object[] args) {
+		for (int i = 0; i < parameterTypes.length; i++) {
+			Object arg = args[i];
+			Class<?> parameterType = parameterTypes[i];
+			if (arg == null) {
+				if (parameterType.isPrimitive())
+					return false;
+				continue;
+			}
+			if (arg instanceof Runnable && parameterType == Consumer.class)
+				continue;
+			if (!wrap(parameterType).isInstance(arg))
+				return false;
+		}
+		return true;
+	}
+
+	private static Object[] adaptFoliaArguments(Class<?>[] parameterTypes, Object[] args) {
+		Object[] adapted = args.clone();
+		for (int i = 0; i < parameterTypes.length; i++) {
+			if (adapted[i] instanceof Runnable runnable && parameterTypes[i] == Consumer.class)
+				adapted[i] = (Consumer<Object>) ignored -> runnable.run();
+		}
+		return adapted;
+	}
+
+	private static Class<?> wrap(Class<?> clazz) {
+		if (!clazz.isPrimitive())
+			return clazz;
+		if (clazz == boolean.class)
+			return Boolean.class;
+		if (clazz == byte.class)
+			return Byte.class;
+		if (clazz == char.class)
+			return Character.class;
+		if (clazz == double.class)
+			return Double.class;
+		if (clazz == float.class)
+			return Float.class;
+		if (clazz == int.class)
+			return Integer.class;
+		if (clazz == long.class)
+			return Long.class;
+		if (clazz == short.class)
+			return Short.class;
+		return Void.class;
 	}
 
 	private static long ticksToMillis(long ticks) {
