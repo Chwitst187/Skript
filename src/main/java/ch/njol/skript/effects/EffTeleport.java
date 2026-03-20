@@ -7,6 +7,7 @@ import ch.njol.skript.lang.*;
 import ch.njol.skript.lang.SkriptParser.ParseResult;
 import ch.njol.skript.sections.EffSecSpawn.SpawnEvent;
 import ch.njol.skript.timings.SkriptTimings;
+import ch.njol.skript.util.SkriptScheduler;
 import ch.njol.skript.util.Direction;
 import ch.njol.skript.variables.Variables;
 import ch.njol.util.Kleenean;
@@ -134,9 +135,8 @@ public class EffTeleport extends Effect {
 		Object localVars = Variables.removeLocals(event);
 
 		// This will either fetch the chunk instantly if on Spigot or already loaded or fetch it async if on Paper.
-		PaperLib.getChunkAtAsync(location).thenAccept(chunk -> {
+		PaperLib.getChunkAtAsync(location).thenAccept(chunk -> SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), event, () -> {
 			Delay.addDelayedEvent(event);
-			// The following is now on the main thread
 			SkriptTeleportFlag[] teleportFlags = this.teleportFlags == null ? null : this.teleportFlags.getArray(event);
 			for (Entity entity : entityArray) {
 				teleport(entity, fixed, teleportFlags);
@@ -145,7 +145,7 @@ public class EffTeleport extends Effect {
 			// Re-set local variables
 			if (localVars != null)
 				Variables.setLocalVariables(event, localVars);
-			
+
 			// Continue the rest of the trigger if there is one
 			Object timing = null;
 			if (next != null) {
@@ -160,7 +160,7 @@ public class EffTeleport extends Effect {
 			}
 			Variables.removeLocals(event); // Clean up local vars, we may be exiting now
 			SkriptTimings.stop(timing);
-		});
+		}, 0L));
 		return null;
 	}
 
