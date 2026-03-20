@@ -22,6 +22,8 @@ import org.bukkit.event.player.PlayerRespawnEvent;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
 
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.Objects;
 import java.util.stream.Stream;
@@ -46,6 +48,8 @@ public class EffTeleport extends Effect {
 
 	private static final boolean TELEPORT_FLAGS_SUPPORTED = Skript.classExists("io.papermc.paper.entity.TeleportFlag");
 	private static final boolean CAN_RUN_ASYNC = PaperLib.getEnvironment() instanceof PaperEnvironment;
+	private static final @Nullable Method TELEPORT_ASYNC_METHOD = findTeleportAsyncMethod(false);
+	private static final @Nullable Method TELEPORT_ASYNC_WITH_FLAGS_METHOD = TELEPORT_FLAGS_SUPPORTED ? findTeleportAsyncMethod(true) : null;
 
 	static {
 		String extra = "";
@@ -184,15 +188,52 @@ public class EffTeleport extends Effect {
 			location.setWorld(entity.getWorld());
 		}
 
-		if (!TELEPORT_FLAGS_SUPPORTED || skriptTeleportFlags == null) {
+		TeleportFlag[] teleportFlags = null;
+		if (TELEPORT_FLAGS_SUPPORTED && skriptTeleportFlags != null) {
+			teleportFlags = Arrays.stream(skriptTeleportFlags)
+				.flatMap(teleportFlag -> Stream.of(teleportFlag.getTeleportFlags()))
+				.filter(Objects::nonNull)
+				.toArray(TeleportFlag[]::new);
+		}
+
+		if (Skript.isRunningFolia() && teleportAsync(entity, location, teleportFlags))
+			return;
+
+		if (teleportFlags == null) {
 			entity.teleport(location);
 			return;
 		}
 
-		Stream<TeleportFlag> teleportFlags = Arrays.stream(skriptTeleportFlags)
-				.flatMap(teleportFlag -> Stream.of(teleportFlag.getTeleportFlags()))
-				.filter(Objects::nonNull);
-		entity.teleport(location, teleportFlags.toArray(TeleportFlag[]::new));
+		entity.teleport(location, teleportFlags);
+	}
+
+	private static boolean teleportAsync(Entity entity, Location location, @Nullable TeleportFlag[] teleportFlags) {
+		Method method = teleportFlags == null || teleportFlags.length == 0
+			? TELEPORT_ASYNC_METHOD
+			: TELEPORT_ASYNC_WITH_FLAGS_METHOD;
+		if (method == null)
+			return false;
+
+		try {
+			if (teleportFlags == null || teleportFlags.length == 0) {
+				method.invoke(entity, location);
+			} else {
+				method.invoke(entity, location, (Object) teleportFlags);
+			}
+			return true;
+		} catch (IllegalAccessException | InvocationTargetException e) {
+			throw new UnsupportedOperationException("Unable to teleport entity asynchronously", e);
+		}
+	}
+
+	private static @Nullable Method findTeleportAsyncMethod(boolean withFlags) {
+		try {
+			if (withFlags)
+				return Entity.class.getMethod("teleportAsync", Location.class, TeleportFlag[].class);
+			return Entity.class.getMethod("teleportAsync", Location.class);
+		} catch (NoSuchMethodException e) {
+			return null;
+		}
 	}
 
 }
