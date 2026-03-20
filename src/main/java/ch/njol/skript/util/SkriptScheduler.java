@@ -1,7 +1,18 @@
 package ch.njol.skript.util;
 
 import ch.njol.skript.Skript;
+import ch.njol.skript.command.CommandEvent;
+import ch.njol.skript.registrations.EventValues;
 import org.bukkit.Bukkit;
+import org.bukkit.Location;
+import org.bukkit.World;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.Player;
+import org.bukkit.event.Event;
+import org.bukkit.event.block.BlockEvent;
+import org.bukkit.event.entity.EntityEvent;
+import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.plugin.Plugin;
 import org.jetbrains.annotations.Nullable;
 
@@ -31,6 +42,14 @@ public final class SkriptScheduler {
 		Object task = delay <= 0
 			? invokeFoliaScheduler("getGlobalRegionScheduler", "run", plugin, runnable)
 			: invokeFoliaScheduler("getGlobalRegionScheduler", "runDelayed", plugin, runnable, delay);
+		return registerFoliaTask(plugin, task);
+	}
+
+	public static int scheduleSyncDelayedTask(Plugin plugin, Event event, Runnable runnable, long delay) {
+		if (!Skript.isRunningFolia())
+			return Bukkit.getScheduler().scheduleSyncDelayedTask(plugin, runnable, delay);
+
+		Object task = scheduleFoliaEventTask(plugin, event, runnable, delay);
 		return registerFoliaTask(plugin, task);
 	}
 
@@ -123,6 +142,75 @@ public final class SkriptScheduler {
 		int taskId = FOLIA_TASK_IDS.getAndIncrement();
 		FOLIA_TASKS.put(taskId, new FoliaTaskRef(plugin, task));
 		return taskId;
+	}
+
+	private static @Nullable Object scheduleFoliaEventTask(Plugin plugin, Event event, Runnable runnable, long delay) {
+		Entity entity = getEventEntity(event);
+		if (entity != null)
+			return scheduleFoliaEntityTask(plugin, entity, runnable, delay);
+
+		Location location = getEventLocation(event);
+		if (location != null)
+			return scheduleFoliaRegionTask(plugin, location, runnable, delay);
+
+		return delay <= 0
+			? invokeFoliaScheduler("getGlobalRegionScheduler", "run", plugin, runnable)
+			: invokeFoliaScheduler("getGlobalRegionScheduler", "runDelayed", plugin, runnable, delay);
+	}
+
+	private static @Nullable Object scheduleFoliaEntityTask(Plugin plugin, Entity entity, Runnable runnable, long delay) {
+		try {
+			Object scheduler = entity.getClass().getMethod("getScheduler").invoke(entity);
+			Method method = findCompatibleFoliaMethod(
+				scheduler.getClass(),
+				delay <= 0 ? "run" : "runDelayed",
+				delay <= 0
+					? new Object[] {plugin, runnable, null}
+					: new Object[] {plugin, runnable, null, delay}
+			);
+			return method.invoke(
+				scheduler,
+				adaptFoliaArguments(method.getParameterTypes(), delay <= 0
+					? new Object[] {plugin, runnable, null}
+					: new Object[] {plugin, runnable, null, delay})
+			);
+		} catch (ReflectiveOperationException e) {
+			throw new UnsupportedOperationException("Unable to schedule Folia entity task", e);
+		}
+	}
+
+	private static @Nullable Object scheduleFoliaRegionTask(Plugin plugin, Location location, Runnable runnable, long delay) {
+		World world = location.getWorld();
+		if (world == null)
+			return null;
+		int chunkX = location.getBlockX() >> 4;
+		int chunkZ = location.getBlockZ() >> 4;
+		return delay <= 0
+			? invokeFoliaScheduler("getRegionScheduler", "run", plugin, world, chunkX, chunkZ, runnable)
+			: invokeFoliaScheduler("getRegionScheduler", "runDelayed", plugin, world, chunkX, chunkZ, runnable, delay);
+	}
+
+	private static @Nullable Entity getEventEntity(Event event) {
+		if (event instanceof EntityEvent entityEvent)
+			return entityEvent.getEntity();
+		if (event instanceof PlayerEvent playerEvent)
+			return playerEvent.getPlayer();
+		if (event instanceof CommandEvent commandEvent) {
+			CommandSender sender = commandEvent.getSender();
+			if (sender instanceof Player player)
+				return player;
+		}
+		return EventValues.getEventValue(event, Entity.class, EventValues.TIME_NOW);
+	}
+
+	private static @Nullable Location getEventLocation(Event event) {
+		if (event instanceof BlockEvent blockEvent)
+			return blockEvent.getBlock().getLocation();
+		Location location = EventValues.getEventValue(event, Location.class, EventValues.TIME_NOW);
+		if (location != null)
+			return location;
+		Entity entity = getEventEntity(event);
+		return entity != null ? entity.getLocation() : null;
 	}
 
 	private static void cancelFoliaTask(Object task) {

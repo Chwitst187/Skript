@@ -75,7 +75,7 @@ public class Delay extends Effect {
 			// Back up local variables
 			Object localVars = Variables.removeLocals(event);
 			
-			SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), () -> {
+			SkriptScheduler.scheduleSyncDelayedTask(Skript.getInstance(), event, () -> {
 				addDelayedEvent(event);
 				Skript.debug(getIndentation() + "... continuing after " + (System.nanoTime() - start) / 1_000_000_000. + "s");
 
